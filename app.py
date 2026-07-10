@@ -15,7 +15,7 @@ CORS(
     supports_credentials=False
 )
 
-SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_HOST = os.getenv("SMTP_HOST", "sandbox.smtp.mailtrap.io")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 2525))
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASS = os.getenv("SMTP_PASS")
@@ -55,20 +55,20 @@ def send_email():
                 "message": "Receiver email, subject and message are required."
             }), 400
 
-        if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
+        if not SMTP_USER or not SMTP_PASS:
             return jsonify({
                 "success": False,
-                "message": "SMTP credentials are missing in Render environment variables."
+                "message": "SMTP_USER or SMTP_PASS missing in Render environment."
             }), 500
 
         msg = MIMEMultipart()
-        msg["From"] = "test@mailtrap.io"
+        msg["From"] = "sandbox@mailtrap.io"
         msg["To"] = receiver_email
         msg["Subject"] = subject
         msg.attach(MIMEText(message, "plain"))
 
+        # Mailtrap SMTP connection
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20)
-        server.starttls()
         server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(msg["From"], receiver_email, msg.as_string())
         server.quit()
@@ -78,16 +78,16 @@ def send_email():
             "message": "Email sent successfully to Mailtrap inbox!"
         }), 200
 
-    except smtplib.SMTPAuthenticationError:
+    except smtplib.SMTPAuthenticationError as e:
         return jsonify({
             "success": False,
-            "message": "Mailtrap SMTP authentication failed. Check SMTP_USER and SMTP_PASS."
+            "message": f"SMTP Authentication failed: {str(e)}"
         }), 401
 
     except Exception as e:
         return jsonify({
             "success": False,
-            "message": f"Error: {str(e)}"
+            "message": f"Backend error: {str(e)}"
         }), 500
 
 
